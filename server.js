@@ -1,12 +1,12 @@
 'use strict';
+
 const express     = require('express');
 const bodyParser  = require('body-parser');
 const fccTesting  = require('./freeCodeCamp/fcctesting.js');
-require('dotenv').config();
+
 const app = express();
 //lets Express know which template engine is being used
 app.set('view engine', 'pug');
-
 
 fccTesting(app); //For FCC testing purposes
 app.use('/public', express.static(process.cwd() + '/public'));
@@ -19,8 +19,8 @@ const session = require('express-session');
 const mongodb = require('mongodb');
 const MongoClient = mongodb.MongoClient;
 
-const routes = require('./routes.js');
-const auth = require('./auth.js');
+const routes = require('./routes');
+const auth = require('./auth');
  
 app.use(session({
   secret: process.env.SESSION_SECRET,

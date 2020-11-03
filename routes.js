@@ -1,3 +1,5 @@
+
+
 const passport = require('passport');
 const bcrypt = require('bcrypt');
 
@@ -16,12 +18,12 @@ module.exports = function (app, myDataBase) {
 
     app.route('/login')
       .post(passport.authenticate('local', { failureRedirect: '/'}),
-       (req, res) => { 
+       (req, res) => { console.log('/login authenticated')
         res.redirect('/profile');
       });
     
-    app.route('/profile').get(ensureAuthenticated, (req, res) => {
-        //res.render(process.cwd() + '/views/pug/profile', { username: req.user.username });
+    app.route('/profile')
+      .get(ensureAuthenticated, (req, res) => {
         res.render('pug/profile', { username: req.user.username });
       });
     
@@ -37,12 +39,13 @@ module.exports = function (app, myDataBase) {
           if(err) { 
             next(err)
             } else if(user) {
-            res.redirect('/')
+              console.log('user already exists')
+              res.redirect('/')
             } else { 
-            myDataBase.insertOne({
-              username: req.body.username,
-              password: hash
-            }, (err, doc) => {
+              myDataBase.insertOne({
+                username: req.body.username,
+                password: hash
+              }, (err, doc) => {
               if(err) { 
                 res.redirect('/')
                 }
@@ -58,14 +61,14 @@ module.exports = function (app, myDataBase) {
           res.redirect('/profile');
     });
 
-  app.route('/auth/github')
-    .get(passport.authenticate('github'));
+    //app.route("/auth/github")
+      app.get("/auth/github", passport.authenticate("github"));
 
-  app.route('/auth/github/callback')
-    .get(passport.authenticate('github', {failureRedirect: '/'}), 
-      (req, res) => { 
-        res.redirect('/profile');
-      });
+    //app.route("/auth/github/callback")
+      app.get("/auth/github/callback",passport.authenticate("github", {failureRedirect: '/'}), 
+        (req, res) => { 
+          res.redirect('/profile');
+        });
 
     app.use( (req, res, next) => {
       res.status(404).type('text').send('Not Found');
