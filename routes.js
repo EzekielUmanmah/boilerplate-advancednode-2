@@ -18,13 +18,13 @@ module.exports = function (app, myDataBase) {
 
     app.route('/login')
       .post(passport.authenticate('local', { failureRedirect: '/'}),
-       (req, res) => { console.log('/login authenticated')
+       (req, res) => { 
         res.redirect('/profile');
       });
     
     app.route('/profile')
       .get(ensureAuthenticated, (req, res) => {
-        res.render('pug/profile', { username: req.user.username });
+        res.render('pug/profile', { username: req.user.username || req.user.name });
       });
     
     app.route('/logout').get( (req, res) => {
@@ -57,18 +57,22 @@ module.exports = function (app, myDataBase) {
         })
       },
       passport.authenticate('local', { failureRedirect: '/' }),
-        (req, res, next) => {
+        (req, res, next) => { 
           res.redirect('/profile');
     });
 
-    //app.route("/auth/github")
-      app.get("/auth/github", passport.authenticate("github"));
+    app.route("/auth/github")
+      .get(passport.authenticate("github"));
 
-    //app.route("/auth/github/callback")
-      app.get("/auth/github/callback",passport.authenticate("github", {failureRedirect: '/'}), 
-        (req, res) => { 
-          res.redirect('/profile');
+    app.route("/auth/github/callback")
+      .get(passport.authenticate("github", {failureRedirect: '/'}), (req, res) => { 
+          req.session.user_id = req.user.id
+          res.redirect('/chat');
         });
+
+    app.get('/chat', ensureAuthenticated, (req, res, next) => {
+      res.render('pug/chat', { user: req.user })
+    });
 
     app.use( (req, res, next) => {
       res.status(404).type('text').send('Not Found');
