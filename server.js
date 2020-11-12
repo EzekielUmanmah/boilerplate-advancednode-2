@@ -65,13 +65,24 @@ MongoClient.connect(process.env.DATABASE, { useNewUrlParser: true,useUnifiedTopo
     io.on('connection', socket => {
 
       ++currentUsers;
-      io.emit('user count', currentUsers);
-      console.log('User', socket.request.user.name, 'has connected.')
+      io.emit('user', {
+        name: socket.request.user.name,
+        currentUsers,
+        connected: true
+      });
+      console.log(`User ${socket.request.user.name} has connected.`)
 
       socket.on('disconnect', () => {
         --currentUsers;
-        io.emit('user count', currentUsers);
-        console.log('A user has disconnected.');
+        io.emit('user', {connected: false});
+        console.log(`User ${socket.request.user.name} has disconnected.`);
+      });
+
+      socket.on('chat message', message => {
+        io.emit('chat message', {
+          name: socket.request.user.name, 
+          message
+          });
       });
       
     });
