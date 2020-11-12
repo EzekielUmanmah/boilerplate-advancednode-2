@@ -1,11 +1,10 @@
 'use strict';
-//require('dotenv').config();
+require('dotenv').config();
 const express     = require('express');
 const bodyParser  = require('body-parser');
 const fccTesting  = require('./freeCodeCamp/fcctesting.js');
 
 const app = express();
-
 const http = require('http').createServer(app);
 const io = require('socket.io')(http);
 app.set('view engine', 'pug');
@@ -22,6 +21,12 @@ const MongoClient = mongodb.MongoClient;
 const routes = require('./routes');
 const auth = require('./auth');
 
+//packages to enable authentication with Socket.IO
+const passportSocketIo = require('passport.socketio');
+const MongoStore = require('connect-mongo')(session);
+const cookieParser = require('cookie-parser');
+const store = new MongoStore({ url: process.env.DATABASE });
+
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
  
@@ -29,23 +34,48 @@ app.use(session({
   secret: process.env.SESSION_SECRET,
   resave: true,
   saveUninitialized: false,
-  cookie: { secure: false }
+  cookie: { secure: false },
+  key: 'express.sid',
+  store: store,
 }));
 
 app.use(passport.initialize());
 app.use(passport.session());
+
+io.use(
+  passportSocketIo.authorize({
+    cookieParser: cookieParser,
+    key: 'express.sid',
+    secret: process.env.SESSION_SECRET,
+    store: store,
+    success: onAuthorizeSucess,
+    fail: onAuthorizeFail
+    })
+  );
 
 MongoClient.connect(process.env.DATABASE, { useNewUrlParser: true,useUnifiedTopology: true })
   .then(async client => {
 
     const myDataBase = await client.db('database').collection('users');
 
+    routes(app, myDataBase);
+    auth(app, myDataBase);
+
+    let currentUsers = 0;
     io.on('connection', socket => {
-      console.log('A user has connected.')
+
+      ++currentUsers;
+      io.emit('user count', currentUsers);
+      console.log('User', socket.request.user.name, 'has connected.')
+
+      socket.on('disconnect', () => {
+        --currentUsers;
+        io.emit('user count', currentUsers);
+        console.log('A user has disconnected.');
+      });
+      
     });
 
-    routes(app, myDataBase)
-    auth(app, myDataBase)
     
   })
   .catch(e => {
@@ -53,6 +83,21 @@ MongoClient.connect(process.env.DATABASE, { useNewUrlParser: true,useUnifiedTopo
     res.render('pug', { title: e, message: 'Unable to login' });
   });
 });
+
+function onAuthorizeSucess(data, accept){
+
+  console.log('Successful connection to socket.io.');
+  accept(null, true);
+
+};
+
+function onAuthorizeFail(data, message, error, accept){
+
+  if(error) throw new Error(message);
+  console.log('Failed connection to socket.io:', message);
+  accept(null, false);
+
+};
 
 
 http.listen(process.env.PORT || 4000, () => {
